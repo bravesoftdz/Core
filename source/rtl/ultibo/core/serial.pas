@@ -155,6 +155,7 @@ var
 var 
  {Serial logging}
  SERIAL_LOG_ENABLED:Boolean; 
+ SerialDeviceReadEnterCount,SerialDeviceReadExitCount:Integer;
 
 {==============================================================================}
 const
@@ -279,6 +280,7 @@ procedure SerialInit;
 function SerialDeviceOpen(Serial:PSerialDevice;BaudRate,DataBits,StopBits,Parity,FlowControl,ReceiveDepth,TransmitDepth:LongWord):LongWord;
 function SerialDeviceClose(Serial:PSerialDevice):LongWord;
 
+procedure SerialDeviceReadResetEnterExitCounts;
 function SerialDeviceRead(Serial:PSerialDevice;Buffer:Pointer;Size,Flags:LongWord;var Count:LongWord):LongWord;
 function SerialDeviceWrite(Serial:PSerialDevice;Buffer:Pointer;Size,Flags:LongWord;var Count:LongWord):LongWord;
 
@@ -403,7 +405,10 @@ begin
  
  {Initialize Logging}
  SERIAL_LOG_ENABLED:=(SERIAL_DEFAULT_LOG_LEVEL <> SERIAL_LOG_LEVEL_NONE); 
- 
+
+ SerialDeviceReadEnterCount:=0;
+ SerialDeviceReadExitCount:=0;
+
  {Initialize Serial Table}
  SerialDeviceTable:=nil;
  SerialDeviceTableLock:=CriticalSectionCreate; 
@@ -588,6 +593,12 @@ end;
 
 {==============================================================================}
 
+procedure SerialDeviceReadResetEnterExitCounts;
+begin
+ SerialDeviceReadEnterCount:=0;
+ SerialDeviceReadExitCount:=0;
+end;
+
 function SerialDeviceRead(Serial:PSerialDevice;Buffer:Pointer;Size,Flags:LongWord;var Count:LongWord):LongWord;
 {Read data from a Serial device}
 {Serial: The Serial device to read from}
@@ -608,6 +619,8 @@ begin
  {Check Serial}
  if Serial = nil then Exit;
  if Serial.Device.Signature <> DEVICE_SIGNATURE then Exit; 
+
+ Inc(SerialDeviceReadEnterCount);
  
  {$IFDEF SERIAL_DEBUG}
  if SERIAL_LOG_ENABLED then SerialLogDebug(Serial,'Serial Device Read (Size=' + IntToStr(Size) + ')');
@@ -635,6 +648,8 @@ begin
   begin
    Result:=ERROR_CAN_NOT_COMPLETE;
   end;    
+
+ Inc(SerialDeviceReadExitCount);
 end;
 
 {==============================================================================}
